@@ -111,12 +111,15 @@ bb::get_config_path_with_verify(std::string_view path)
 }
 
 bb::config
-bb::parse_config_file(const std::filesystem::path & path)
+bb::read_config_from_file(const std::filesystem::path & path)
 {
   std::ifstream in(path);
   nlohmann::json tmp;
   in >> tmp;
-  verify_source_file(tmp);
+  in.close();
+
+  verify_delay_field(tmp);
+  verify_phlimit_field(tmp);
 
   config valid_config;
 
@@ -131,7 +134,28 @@ bb::parse_config_file(const std::filesystem::path & path)
     tmp["physical_limit"]["ram"]
   };
 
-  std::copy(tmp["tape"].begin(), tmp["tape"].end(), std::back_inserter(valid_config.src));
-
   return valid_config;
+}
+
+bb::tape_unit
+bb::read_tape_from_file(const std::filesystem::path & path)
+{
+  std::ifstream in(path);
+  nlohmann::json tmp;
+  in >> tmp;
+  in.close();
+
+  verify_tape_field(tmp);
+
+  tape_unit valid_tape;
+  std::copy(tmp["tape"].begin(), tmp["tape"].end(), std::back_inserter(valid_tape));
+
+  return valid_tape;
+}
+
+void
+bb::dump_tape(std::ofstream & out, const tape_unit & rhs)
+{
+  nlohmann::json tmp = {{"tape", rhs}};
+  out << tmp.dump(2);
 }

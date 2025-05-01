@@ -1,16 +1,22 @@
 {
   "delay": {
-    "on_read": 1,
-    "on_write": 1,
-    "on_roll": 1,
-    "on_offset": 1
+    "on_read": 100,
+    "on_write": 100,
+    "on_roll": 100,
+    "on_offset": 100
   },
   "physical_limit": {
-    "ram": 512
+    "ram": 8
   },
   "tape": [
-    12,
-    32,
-    23
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
   ]
 }

@@ -2,7 +2,8 @@
 #define BBTAPE_FILES_HPP
 
 #include <cstddef>
-#include <list>
+#include <cstdint>
+#include <vector>
 #include <utility>
 #include <filesystem>
 #include <string_view>
@@ -22,17 +23,25 @@ namespace bb
     std::size_t ram;
   };
 
-  using tape = std::list< long long int >;
+  using tape_unit = std::vector< int32_t >;
 
   struct config
   {
     delay_part delay;
     phlimit_part phlimit;
-    tape src;
   };
 
-  std::filesystem::path get_config_path_with_verify(std::string_view path);
-  config parse_config_file(const std::filesystem::path & path);
+  std::filesystem::path 
+  get_config_path_with_verify(std::string_view path);
+
+  config
+  read_config_from_file(const std::filesystem::path & path);
+
+  tape_unit
+  read_tape_from_file(const std::filesystem::path & path);
+
+  void
+  dump_tape(std::ofstream & out, const tape_unit & rhs);
 }
 
 #endif
