@@ -2,7 +2,7 @@
 #define BBTAPE_FILES_HPP
 
 #include <cstddef>
-#include <forward_list>
+#include <list>
 #include <utility>
 #include <filesystem>
 #include <string_view>
@@ -22,7 +22,7 @@ namespace bb
     std::size_t ram;
   };
 
-  using tape = std::forward_list< long long int >;
+  using tape = std::list< long long int >;
 
   struct config
   {

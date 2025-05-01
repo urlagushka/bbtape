@@ -131,7 +131,7 @@ bb::parse_config_file(const std::filesystem::path & path)
     tmp["physical_limit"]["ram"]
   };
 
-  std::copy(tmp["tape"].begin(), tmp["tape"].end(), std::back_inserter(valid_config.src.begin()));
+  std::copy(tmp["tape"].begin(), tmp["tape"].end(), std::back_inserter(valid_config.src));
 
   return valid_config;
 }
