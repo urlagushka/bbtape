@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <thread>
+#include <iostream>
 
 bb::tape_handler::tape_handler(config rhs):
   __tape(nullptr),

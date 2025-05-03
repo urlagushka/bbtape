@@ -45,7 +45,9 @@ namespace bb
 
   fs::path
   sort_handler_3(
-    std::span< tape_handler > th_link,
+    tape_handler & th_1,
+    tape_handler & th_2,
+    tape_handler & th_3,
     const fs::path & lhs,
     const fs::path & rhs,
     std::span< int32_t > ram_link
