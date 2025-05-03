@@ -1,5 +1,9 @@
 #include <iostream>
 #include <string>
+#include <format>
+#include <filesystem>
+#include <stdexcept>
+#include <chrono>
 
 #include <bbtape/files.hpp>
 #include <bbtape/sort.hpp>
@@ -13,9 +17,14 @@ int main(int argc, char ** argv)
   {
     auto valid_src_path = bb::get_path_from_string(src_path);
     auto valid_dst_path = bb::get_path_from_string(dst_path);
-
     auto valid_config = bb::read_config_from_file(valid_src_path);
+
+    auto start = std::chrono::high_resolution_clock::now();
     bb::external_merge_sort(valid_config, valid_src_path, valid_dst_path);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "sorting time: " << duration.count() << " ms\n";
   }
   catch (const std::format_error & error)
   {

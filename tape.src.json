@@ -2,7 +2,7 @@
   "delay": {
     "on_read": 10,
     "on_write": 10,
-    "on_roll": 10,
+    "on_roll": 100,
     "on_offset": 10
   },
   "physical_limit": {

@@ -3,6 +3,10 @@
 #include <cstdint>
 #include <memory>
 #include <utility>
+#include <future>
+#include <thread>
+#include <stop_token>
+#include <semaphore>
 
 #include <iostream>
 #include <format>
@@ -123,15 +127,16 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
 
 
   // sort
-  ram_handler ram_h(std::move(ram), params.block_size);
+  ram_manager ram_h(std::move(ram), params.block_size);
   
   // std::vector< tape_handler > handler(ft_config.phlimit.conv);
 
   auto lhs = tf_h[0];
   auto rhs = tf_h[1];
   auto block = ram_h.take_ram_block();
+  tape_handler th0(ft_config);
+  // auto merge = sort_handler_2(th, th0, lhs, rhs, block);
   auto merge = sort_handler_1(th, lhs, rhs, block);
-
 }
 
 bb::fs::path
@@ -272,22 +277,161 @@ bb::sort_handler_2(
 {
   if (!th_1.is_available() || !th_2.is_available())
   {
-    throw std::runtime_error("sort_handler_2: tape_handler is unavailable!");
+    throw std::runtime_error("sort_handler_1: tape_handler is unavailable!");
   }
+
+  auto lhs_tape = std::make_unique< tape_unit >(read_tape_from_file(lhs));
+  auto rhs_tape = std::make_unique< tape_unit >(read_tape_from_file(rhs));
+  auto merge_tape = std::make_unique< tape_unit >(lhs_tape->size() + rhs_tape->size());
+
+  const std::size_t lhs_tape_size = lhs_tape->size();
+  const std::size_t rhs_tape_size = rhs_tape->size();
+  const std::size_t merge_tape_size = merge_tape->size();
+
+  std::atomic< std::size_t > lhs_tape_pos = 0;
+  std::atomic< std::size_t > rhs_tape_pos = 0;
+  std::atomic< std::size_t > merge_tape_pos = 0;
+
+  std::atomic< std::size_t > was_read_lhs = 0;
+  std::atomic< std::size_t > was_read_rhs = 0;
+
+  std::atomic< std::size_t > was_write_lhs = 0;
+  std::atomic< std::size_t > was_write_rhs = 0;
+
+  std::size_t ram_mid = 0;
+  auto lhs_ram = ram_link.subspan(0, 0);
+  auto rhs_ram = ram_link.subspan(0, 0);
+
+  std::atomic_flag need_lhs_read;
+  std::atomic_flag need_rhs_read;
+  std::mutex th_1_mutex;
+
+  auto lhs_thread = std::jthread([&](std::stop_token stop)
+  {
+    while (!stop.stop_requested())
+    {
+      if (need_lhs_read.test())
+      {
+        std::lock_guard< std::mutex > lock(th_1_mutex);
+        th_1.setup_tape(std::move(lhs_tape));
+        was_read_lhs = read_from_tape_to_ram(th_1, 0, lhs_ram.size(), lhs_tape_pos, lhs_ram);
+        lhs_tape_pos = lhs_tape_pos + was_read_lhs;
+        lhs_tape = th_1.release_tape();
+        was_write_lhs = 0;
+        need_lhs_read.clear();
+      }
+    }
+  });
+
+  auto rhs_thread = std::jthread([&](std::stop_token stop)
+  {
+    while (!stop.stop_requested())
+    {
+      if (need_rhs_read.test())
+      {
+        std::lock_guard< std::mutex > lock(th_1_mutex);
+        th_1.setup_tape(std::move(rhs_tape));
+        was_read_rhs = read_from_tape_to_ram(th_1, 0, rhs_ram.size(), rhs_tape_pos, rhs_ram);
+        rhs_tape_pos = rhs_tape_pos + was_read_rhs;
+        rhs_tape = th_1.release_tape();
+        was_write_rhs = 0;
+        need_rhs_read.clear();
+      }
+    }
+  });
+
+  th_2.setup_tape(std::move(merge_tape));
+  th_2.roll(merge_tape_pos);
+  while (merge_tape_pos + 1 < merge_tape_size)
+  {
+    // balance ram block for read tapes
+    auto valid_lhs_size = lhs_tape_size - lhs_tape_pos;
+    auto valid_rhs_size = rhs_tape_size - rhs_tape_pos;
+    if (was_read_lhs == was_write_lhs && was_read_rhs == was_write_rhs)
+    {
+      ram_mid = balance_ram_block(ram_link.size(), valid_lhs_size, valid_rhs_size);
+      lhs_ram = ram_link.subspan(0, ram_mid);
+      rhs_ram = ram_link.subspan(ram_mid, ram_link.size() - ram_mid);
+    }
+
+    // read if there are elements && tape is not empty
+    if (valid_lhs_size > 0 && was_read_lhs == was_write_lhs)
+    {
+      need_lhs_read.test_and_set();
+    }
+    if (valid_rhs_size > 0 && was_read_rhs == was_write_rhs)
+    {
+      need_rhs_read.test_and_set();
+    }
+
+    while (
+      (was_write_lhs < was_read_lhs && was_write_rhs < was_read_rhs)
+      ||
+      ((was_write_lhs < was_read_lhs || was_write_rhs < was_read_rhs) && (valid_lhs_size == 0 || valid_rhs_size == 0))
+    )
+    {
+      std::lock_guard< std::mutex > lock(th_1_mutex);
+      // only rhs has element
+      if (was_write_lhs == was_read_lhs)
+      {
+        th_2.write(rhs_ram[was_write_rhs++]);
+        if (merge_tape_pos + 1 == th_2.size())
+        {
+          break;
+        }
+        th_2.offset(1);
+        ++merge_tape_pos;
+        continue;
+      }
+
+      // only lhs has element
+      if (was_write_rhs == was_read_rhs)
+      {
+        th_2.write(lhs_ram[was_write_lhs++]);
+        if (merge_tape_pos + 1 == th_2.size())
+        {
+          break;
+        }
+        th_2.offset(1);
+        ++merge_tape_pos;
+        continue;
+      }
+
+      // both has element
+      auto lhs_data = lhs_ram[was_write_lhs];
+      auto rhs_data = rhs_ram[was_write_rhs];
+      if (lhs_data < rhs_data)
+      {
+        th_2.write(lhs_data);
+        ++was_write_lhs;
+      }
+      else
+      {
+        th_2.write(rhs_data);
+        ++was_write_rhs;
+      }
+      if (merge_tape_pos + 1 == th_2.size())
+      {
+        ++merge_tape_pos;
+        break;
+      }
+      th_2.offset(1);
+      ++merge_tape_pos;
+    }
+  }
+
+  merge_tape = th_2.release_tape();
+  auto merge_file = utils::create_tmp_file();
+  write_tape_to_file(merge_file, *merge_tape);
+  return merge_file;
 }
 
 bb::fs::path
 bb::sort_handler_3(
-  tape_handler & th_1,
-  tape_handler & th_2,
-  tape_handler & th_3,
+  std::span< tape_handler > th_link,
   const fs::path & lhs,
   const fs::path & rhs,
   std::span< int32_t > ram_link
 )
 {
-  if (!th_1.is_available() || !th_2.is_available() || !th_3.is_available())
-  {
-    throw std::runtime_error("sort_handler_3: tape_handler is unavailable!");
-  }
 }

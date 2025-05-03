@@ -12,11 +12,11 @@
 
 namespace bb
 {
-  class ram_handler
+  class ram_manager
   {
     public:
-      ram_handler() = delete;
-      ram_handler(std::unique_ptr< std::vector< int32_t > > ram, std::size_t block_size);
+      ram_manager() = delete;
+      ram_manager(std::unique_ptr< std::vector< int32_t > > ram, std::size_t block_size);
 
       std::span< int32_t > take_ram_block();
       void free_ram_block(std::span< int32_t > block);

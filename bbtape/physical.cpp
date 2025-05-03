@@ -5,7 +5,7 @@
 #include <ranges>
 #include <iostream>
 
-bb::ram_handler::ram_handler(std::unique_ptr< std::vector< int32_t > > ram, std::size_t block_size):
+bb::ram_manager::ram_manager(std::unique_ptr< std::vector< int32_t > > ram, std::size_t block_size):
   __ram(std::move(ram)),
   __blocks(__ram->size() / block_size),
   __block_size(block_size)
@@ -17,7 +17,7 @@ bb::ram_handler::ram_handler(std::unique_ptr< std::vector< int32_t > > ram, std:
 }
 
 std::span< int32_t >
-bb::ram_handler::take_ram_block()
+bb::ram_manager::take_ram_block()
 {
   auto tmp = std::find_if(__blocks.begin(), __blocks.end(), [](const std::atomic_flag & flag)
   {
@@ -35,7 +35,7 @@ bb::ram_handler::take_ram_block()
 }
 
 void
-bb::ram_handler::free_ram_block(std::span< int32_t > block)
+bb::ram_manager::free_ram_block(std::span< int32_t > block)
 {
   if (block.data() < __ram->data() || block.data() + __ram->size() > __ram->data() + __ram->size())
   {
