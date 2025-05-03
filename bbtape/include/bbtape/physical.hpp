@@ -27,6 +27,9 @@ namespace bb
       std::size_t __block_size;
   };
 
+  std::size_t
+  balance_ram_block(std::size_t ram_size, std::size_t lhs_size, std::size_t rhs_size);
+
   class conv_handler
   {
     public:

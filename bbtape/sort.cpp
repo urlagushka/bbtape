@@ -69,7 +69,7 @@ bb::get_sort_params(std::size_t tape_size, std::size_t ram_size, std::size_t con
   {
     sort_method = 3;
     thread_amount = conv_amount / 3;
-    block_size = ram_size / thread_amount;
+    block_size = (thread_amount > ram_size / 2) ? 2 : ram_size / thread_amount;
   }
 
   return {file_amount, sort_method, thread_amount, block_size};
@@ -103,6 +103,8 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
     std::size_t was_read = read_from_tape_to_ram(th, 0, ram_size, src_offset, *ram);
     src_offset = src_offset + was_read;
     src_tape = th.release_tape();
+
+    std::sort(ram->begin(), ram->end());
 
     auto tmp_tape = std::make_unique< tape_unit >(was_read);
     th.setup_tape(std::move(tmp_tape));
@@ -147,49 +149,109 @@ bb::sort_handler_1(
 
   auto lhs_tape = std::make_unique< tape_unit >(read_tape_from_file(lhs));
   auto rhs_tape = std::make_unique< tape_unit >(read_tape_from_file(rhs));
-  auto merge_tape = std::make_unique< tape_unit >(tape_unit(lhs_tape->size() + rhs_tape->size()));
+  auto merge_tape = std::make_unique< tape_unit >(lhs_tape->size() + rhs_tape->size());
 
-  const std::size_t lhs_ram_start = 0;
-  const std::size_t rhs_ram_start = ram_link.size() / 2;
-  std::size_t lhs_tape_off_pos = 0;
-  std::size_t rhs_tape_off_pos = 0;
-  std::size_t merge_tape_off_pos = 0;
-  std::size_t valid_lhs_ram_limit = 0;
-  std::size_t valid_rhs_ram_limit = 0;
-  std::size_t lhs_pos_vl = 0;
-  std::size_t rhs_pos_vl = 0;
+  const std::size_t lhs_tape_size = lhs_tape->size();
+  const std::size_t rhs_tape_size = rhs_tape->size();
+  const std::size_t merge_tape_size = merge_tape->size();
 
-  while (merge_tape_off_pos < merge_tape->size())
+  std::size_t lhs_tape_pos = 0;
+  std::size_t rhs_tape_pos = 0;
+  std::size_t merge_tape_pos = 0;
+
+  std::size_t was_read_lhs = 0;
+  std::size_t was_read_rhs = 0;
+
+  std::size_t was_write_lhs = 0;
+  std::size_t was_write_rhs = 0;
+
+  std::size_t ram_mid = 0;
+  auto lhs_ram = ram_link.subspan(0, 0);
+  auto rhs_ram = ram_link.subspan(0, 0);
+  while (merge_tape_pos + 1 < merge_tape_size)
   {
-    if (lhs_pos_vl != rhs_ram_start && lhs_tape_off_pos < lhs_tape->size())
+    // balance ram block for read tapes
+    auto valid_lhs_size = lhs_tape_size - lhs_tape_pos;
+    auto valid_rhs_size = rhs_tape_size - rhs_tape_pos;
+    if (was_read_lhs == was_write_lhs && was_read_rhs == was_write_rhs)
+    {
+      ram_mid = balance_ram_block(ram_link.size(), valid_lhs_size, valid_rhs_size);
+      lhs_ram = ram_link.subspan(0, ram_mid);
+      rhs_ram = ram_link.subspan(ram_mid, ram_link.size() - ram_mid);
+    }
+
+    // read if there are elements && tape is not empty
+    if (valid_lhs_size > 0 && was_read_lhs == was_write_lhs)
     {
       th_1.setup_tape(std::move(lhs_tape));
-      valid_lhs_ram_limit = read_from_tape_to_ram(th_1, lhs_ram_start, rhs_ram_start, lhs_tape_off_pos, ram_link);
-      lhs_tape_off_pos = lhs_tape_off_pos + valid_lhs_ram_limit - lhs_ram_start;
+      was_read_lhs = read_from_tape_to_ram(th_1, 0, lhs_ram.size(), lhs_tape_pos, lhs_ram);
+      lhs_tape_pos = lhs_tape_pos + was_read_lhs;
       lhs_tape = th_1.release_tape();
+      was_write_lhs = 0;
     }
-
-    if (rhs_pos_vl != ram_link.size() && rhs_tape_off_pos < rhs_tape->size())
+    if (valid_rhs_size > 0 && was_read_rhs == was_write_rhs)
     {
       th_1.setup_tape(std::move(rhs_tape));
-      valid_rhs_ram_limit = read_from_tape_to_ram(th_1, rhs_ram_start, ram_link.size(), rhs_tape_off_pos, ram_link);
-      rhs_tape_off_pos = rhs_tape_off_pos + valid_rhs_ram_limit - rhs_ram_start;
+      was_read_rhs = read_from_tape_to_ram(th_1, 0, rhs_ram.size(), rhs_tape_pos, rhs_ram);
+      rhs_tape_pos = rhs_tape_pos + was_read_rhs;
       rhs_tape = th_1.release_tape();
+      was_write_rhs = 0;
     }
-
-    lhs_pos_vl = lhs_ram_start;
-    rhs_pos_vl = rhs_ram_start;
-
+ 
     th_1.setup_tape(std::move(merge_tape));
-    th_1.roll(merge_tape_off_pos);
-    while (lhs_pos_vl != valid_lhs_ram_limit || rhs_pos_vl != valid_rhs_ram_limit)
+    th_1.roll(merge_tape_pos);
+    while (
+      (was_write_lhs < was_read_lhs && was_write_rhs < was_read_rhs)
+      ||
+      ((was_write_lhs < was_read_lhs || was_write_rhs < was_read_rhs) && (valid_lhs_size == 0 || valid_rhs_size == 0))
+    )
     {
-      auto lhs_data = ram_link[lhs_pos_vl];
-      auto rhs_data = ram_link[rhs_pos_vl];
-      auto min_data = std::min(lhs_data, rhs_data);
-      th_1.write(min_data);
+      // only rhs has element
+      if (was_write_lhs == was_read_lhs)
+      {
+        th_1.write(rhs_ram[was_write_rhs++]);
+        if (merge_tape_pos + 1 == th_1.size())
+        {
+          break;
+        }
+        th_1.offset(1);
+        ++merge_tape_pos;
+        continue;
+      }
+
+      // only lhs has element
+      if (was_write_rhs == was_read_rhs)
+      {
+        th_1.write(lhs_ram[was_write_lhs++]);
+        if (merge_tape_pos + 1 == th_1.size())
+        {
+          break;
+        }
+        th_1.offset(1);
+        ++merge_tape_pos;
+        continue;
+      }
+
+      // both has element
+      auto lhs_data = lhs_ram[was_write_lhs];
+      auto rhs_data = rhs_ram[was_write_rhs];
+      if (lhs_data < rhs_data)
+      {
+        th_1.write(lhs_data);
+        ++was_write_lhs;
+      }
+      else
+      {
+        th_1.write(rhs_data);
+        ++was_write_rhs;
+      }
+      if (merge_tape_pos + 1 == th_1.size())
+      {
+        ++merge_tape_pos;
+        break;
+      }
       th_1.offset(1);
-      (min_data == lhs_data) ? ++lhs_pos_vl : ++rhs_pos_vl;
+      ++merge_tape_pos;
     }
     merge_tape = th_1.release_tape();
   }
