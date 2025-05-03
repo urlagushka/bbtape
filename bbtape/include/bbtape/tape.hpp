@@ -24,6 +24,7 @@ namespace bb
 
       void setup_tape(std::unique_ptr< tape_unit > rhs);
       std::unique_ptr< tape_unit > release_tape();
+      bool is_available() const;
 
       std::size_t get_pos_vl() const;
       std::size_t size() const;

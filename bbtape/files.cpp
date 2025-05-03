@@ -61,10 +61,18 @@ namespace
     {
       throw std::runtime_error("source file is bad! (field physical_limit.ram missed)");
     }
+    if (!file["physical_limit"].contains("conv"))
+    {
+      throw std::runtime_error("source file is bad! (field physical_limit.conv missed)");
+    }
 
     if (!file["physical_limit"]["ram"].is_number_integer())
     {
       throw std::runtime_error("source file is bad! (field physical_limit.ram must be integer number)");
+    }
+    if (!file["physical_limit"]["conv"].is_number_integer())
+    {
+      throw std::runtime_error("source file is bad! (field physical_limit.conv must be integer number)");
     }
   }
 
@@ -83,35 +91,30 @@ namespace
   }
 
   void
-  verify_source_file(const nlohmann::json & file)
+  verify_file_path(const std::filesystem::path & path)
   {
-    verify_delay_field(file);
-    verify_phlimit_field(file);
-    verify_tape_field(file);
+    if (!std::filesystem::exists(path))
+    {
+      throw std::runtime_error("file does not exist!");
+    }
+    if (path.extension() != ".json")
+    {
+      throw std::runtime_error("file extension is bad! (.json required)");
+    }
   }
 }
 
-std::filesystem::path
-bb::get_config_path_with_verify(std::string_view path)
+bb::fs::path
+bb::get_path_from_string(std::string_view path)
 {
-  std::ifstream tmp(path);
-  if (!tmp.is_open())
-  {
-    throw std::runtime_error("source file is unavailable!");
-  }
-  tmp.close();
-
   std::filesystem::path valid_path = path;
-  if (valid_path.extension() != ".json")
-  {
-    throw std::runtime_error("source file extension is bad! (.json required)");
-  }
+  verify_file_path(valid_path);
 
   return valid_path;
 }
 
 bb::config
-bb::read_config_from_file(const std::filesystem::path & path)
+bb::read_config_from_file(const fs::path & path)
 {
   std::ifstream in(path);
   nlohmann::json tmp;
@@ -131,15 +134,18 @@ bb::read_config_from_file(const std::filesystem::path & path)
   };
 
   valid_config.phlimit = {
-    tmp["physical_limit"]["ram"]
+    tmp["physical_limit"]["ram"],
+    tmp["physical_limit"]["conv"]
   };
 
   return valid_config;
 }
 
 bb::tape_unit
-bb::read_tape_from_file(const std::filesystem::path & path)
+bb::read_tape_from_file(const fs::path & path)
 {
+  verify_file_path(path);
+
   std::ifstream in(path);
   nlohmann::json tmp;
   in >> tmp;
@@ -154,8 +160,11 @@ bb::read_tape_from_file(const std::filesystem::path & path)
 }
 
 void
-bb::dump_tape(std::ofstream & out, const tape_unit & rhs)
+bb::write_tape_to_file(const fs::path & path, const tape_unit & rhs)
 {
+  verify_file_path(path);
+
+  std::ofstream out(path);
   nlohmann::json tmp = {{"tape", rhs}};
   out << tmp.dump(2);
 }

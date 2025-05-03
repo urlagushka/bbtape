@@ -1,17 +1,37 @@
 #ifndef BBTAPE_PHYSICAL_HPP
 #define BBTAPE_PHYSICAL_HPP
 
+#include <memory>
+#include <vector>
 #include <cstdint>
 #include <cstddef>
-#include <vector>
+#include <span>
+#include <atomic>
 
-namespace bb::physical
+#include <bbtape/tape.hpp>
+
+namespace bb
 {
-  struct ram
+  class ram_handler
   {
-    std::vector< uint32_t > buffer;
-    std::size_t limit_in_fields;
-    std::size_t limit_in_bytes;
+    public:
+      ram_handler() = delete;
+      ram_handler(std::unique_ptr< std::vector< int32_t > > ram, std::size_t block_size);
+
+      std::span< int32_t > take_ram_block();
+      void free_ram_block(std::span< int32_t > block);
+
+    private:
+      std::unique_ptr< std::vector< int32_t > > __ram;
+      std::vector< std::atomic_flag > __blocks;
+      std::size_t __block_size;
+  };
+
+  class conv_handler
+  {
+    public:
+    private:
+      std::unique_ptr< tape_handler > __conv;
   };
 }
 

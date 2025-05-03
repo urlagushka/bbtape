@@ -1,11 +1,13 @@
-#ifndef BBTAPE_DETAILS_HPP
-#define BBTAPE_DETAILS_HPP
+#ifndef BBTAPE_UTILS_HPP
+#define BBTAPE_UTILS_HPP
 
 #include <filesystem>
 #include <vector>
 
-namespace bb::details
+namespace bb::utils
 {
+  namespace fs = std::filesystem;
+
   class tmp_file_handler
   {
     public:
@@ -16,12 +18,21 @@ namespace bb::details
       tmp_file_handler & operator=(tmp_file_handler &&) = default;
       ~tmp_file_handler();
 
-      std::filesystem::path create_file();
-      void delete_file(const std::filesystem::path & file);
+      fs::path create_file();
+      void delete_file(const fs::path & path);
+
+      void push_back(const fs::path & path);
+      fs::path & operator[](std::size_t i);
 
     private:
-      std::vector< std::filesystem::path > __files;
+      std::vector< fs::path > __files;
   };
+
+  fs::path
+  create_tmp_file();
+
+  void
+  remove_file(const fs::path & path);
 }
 
 #endif

@@ -10,6 +10,8 @@
 
 namespace bb
 {
+  namespace fs = std::filesystem;
+
   struct delay_part
   {
     std::size_t on_read;
@@ -21,6 +23,7 @@ namespace bb
   struct phlimit_part
   {
     std::size_t ram;
+    std::size_t conv;
   };
 
   using tape_unit = std::vector< int32_t >;
@@ -31,17 +34,17 @@ namespace bb
     phlimit_part phlimit;
   };
 
-  std::filesystem::path 
-  get_config_path_with_verify(std::string_view path);
+  fs::path
+  get_path_from_string(std::string_view path);
 
   config
-  read_config_from_file(const std::filesystem::path & path);
+  read_config_from_file(const fs::path & path);
 
   tape_unit
-  read_tape_from_file(const std::filesystem::path & path);
+  read_tape_from_file(const fs::path & path);
 
   void
-  dump_tape(std::ofstream & out, const tape_unit & rhs);
+  write_tape_to_file(const fs::path & path, const tape_unit & rhs);
 }
 
 #endif

@@ -102,6 +102,12 @@ bb::tape_handler::release_tape()
   return std::move(__tape);
 }
 
+bool
+bb::tape_handler::is_available() const
+{
+  return (__tape) ? false : true;
+}
+
 std::size_t
 bb::tape_handler::get_pos_vl() const
 {
