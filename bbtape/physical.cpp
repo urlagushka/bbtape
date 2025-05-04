@@ -14,6 +14,9 @@ bb::ram_manager::ram_manager(std::unique_ptr< std::vector< int32_t > > ram, std:
   {
     flag.clear();
   }
+  std::cout << "\n----------------------------\n";
+  std::cout << "RAM SIZE " << __ram->size() << "\n";
+  std::cout << "BLOCKS SIZE " << __blocks.size() << "\n";
 }
 
 std::span< int32_t >
@@ -30,19 +33,32 @@ bb::ram_manager::take_ram_block()
   tmp->test_and_set();
 
   std::size_t offset = std::distance(__blocks.begin(), tmp);
-
-  return std::span< int32_t >(*__ram | std::views::drop(offset) | std::views::take(__block_size));
+  auto to_ret = std::span< int32_t >(*__ram | std::views::drop(offset) | std::views::take(__block_size));
+  std::cout << "TAKE\n";
+  std::cout << to_ret.data() << std::endl;
+  return to_ret;
 }
 
 void
 bb::ram_manager::free_ram_block(std::span< int32_t > block)
 {
-  if (block.data() < __ram->data() || block.data() + __ram->size() > __ram->data() + __ram->size())
+  std::cout << "FREE\n";
+  std::cout << block.data() << std::endl;
+
+  if (block.data() - __ram->data() < 0)
   {
     throw std::runtime_error("block is not owned by ram!");
   }
 
-  __blocks[(__ram->data() - block.data()) / __block_size].clear();
+  __blocks[(block.data() - __ram->data())].clear();
+}
+
+std::unique_ptr< std::vector< int32_t > >
+bb::ram_manager::pick_ram()
+{
+  __blocks.clear();
+  __block_size = 0;
+  return std::move(__ram);
 }
 
 std::size_t

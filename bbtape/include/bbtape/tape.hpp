@@ -1,8 +1,7 @@
 #ifndef BBTAPE_TAPE_HPP
 #define BBTAPE_TAPE_HPP
 
-#include <mutex>
-#include <list>
+#include <shared_mutex>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -26,11 +25,15 @@ namespace bb
       std::unique_ptr< tape_unit > release_tape();
       bool is_available() const;
 
+      void take();
+      void free();
+      bool is_reserved() const;
+
       std::size_t get_pos_vl() const;
       std::size_t size() const;
 
     private:
-      std::mutex __tape_mutex;
+      // std::shared_mutex __tape_mutex;
 
       std::unique_ptr< tape_unit > __tape;
       std::size_t __pos_vl;
@@ -39,6 +42,8 @@ namespace bb
       std::size_t __delay_on_write;
       std::size_t __delay_on_roll;
       std::size_t __delay_on_offset;
+
+      bool __is_reserved;
   };
 }
 

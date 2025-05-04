@@ -20,6 +20,7 @@ namespace bb
 
       std::span< int32_t > take_ram_block();
       void free_ram_block(std::span< int32_t > block);
+      std::unique_ptr< std::vector< int32_t > > pick_ram();
 
     private:
       std::unique_ptr< std::vector< int32_t > > __ram;

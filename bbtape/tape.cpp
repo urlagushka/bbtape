@@ -11,13 +11,14 @@ bb::tape_handler::tape_handler(config rhs):
   __delay_on_read(rhs.delay.on_read),
   __delay_on_write(rhs.delay.on_write),
   __delay_on_roll(rhs.delay.on_roll),
-  __delay_on_offset(rhs.delay.on_offset)
+  __delay_on_offset(rhs.delay.on_offset),
+  __is_reserved(false)
 {}
 
 int32_t
 bb::tape_handler::read()
 {
-  std::lock_guard< std::mutex > lock(__tape_mutex);
+  //std::lock_guard< std::mutex > lock(__tape_mutex);
   std::this_thread::sleep_for(std::chrono::milliseconds(__delay_on_read));
 
   if (!__tape)
@@ -39,7 +40,7 @@ bb::tape_handler::read()
 void
 bb::tape_handler::write(int32_t new_data)
 {
-  std::lock_guard< std::mutex > lock(__tape_mutex);
+  //std::lock_guard< std::mutex > lock(__tape_mutex);
   std::this_thread::sleep_for(std::chrono::milliseconds(__delay_on_write));
 
   if (!__tape)
@@ -61,7 +62,7 @@ bb::tape_handler::write(int32_t new_data)
 void
 bb::tape_handler::roll(std::size_t new_pos)
 {
-  std::lock_guard< std::mutex > lock(__tape_mutex);
+  //std::lock_guard< std::mutex > lock(__tape_mutex);
   std::this_thread::sleep_for(std::chrono::milliseconds(__delay_on_roll));
 
   if (new_pos > __tape->size())
@@ -75,7 +76,7 @@ bb::tape_handler::roll(std::size_t new_pos)
 void
 bb::tape_handler::offset(int direction)
 {
-  std::lock_guard< std::mutex > lock(__tape_mutex);
+  //std::lock_guard< std::mutex > lock(__tape_mutex);
   std::this_thread::sleep_for(std::chrono::milliseconds(__delay_on_offset));
 
   if (__pos_vl == 0 && direction < 0)
@@ -93,6 +94,8 @@ bb::tape_handler::offset(int direction)
 void
 bb::tape_handler::setup_tape(std::unique_ptr< tape_unit > rhs)
 {
+  // std::cout << "SETUP TAPE: " << rhs << "\n";
+  //std::lock_guard< std::mutex > lock(__tape_mutex);
   __tape = std::move(rhs);
   __pos_vl = 0;
 }
@@ -100,6 +103,7 @@ bb::tape_handler::setup_tape(std::unique_ptr< tape_unit > rhs)
 std::unique_ptr< bb::tape_unit >
 bb::tape_handler::release_tape()
 {
+  //std::lock_guard< std::mutex > lock(__tape_mutex);
   return std::move(__tape);
 }
 
@@ -107,6 +111,37 @@ bool
 bb::tape_handler::is_available() const
 {
   return (__tape) ? false : true;
+}
+
+void
+bb::tape_handler::take()
+{
+  //std::lock_guard< std::mutex > lock(__tape_mutex);
+
+  if (__is_reserved || !is_available())
+  {
+    throw std::runtime_error("can not take tape handler!");
+  }
+
+  __is_reserved = true;
+}
+
+void
+bb::tape_handler::free()
+{
+  //lock_guard< std::mutex > lock(__tape_mutex);
+  if (!is_available())
+  {
+    throw std::runtime_error("can not free tape handler!");
+  }
+
+  __is_reserved = false;
+}
+
+bool
+bb::tape_handler::is_reserved() const
+{
+  return __is_reserved;
 }
 
 std::size_t

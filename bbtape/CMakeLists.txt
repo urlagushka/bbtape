@@ -8,6 +8,7 @@ add_library(bbtape
   utils.cpp
   sort.cpp
   physical.cpp
+  sort_impl.cpp
 )
 
 target_include_directories(bbtape PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

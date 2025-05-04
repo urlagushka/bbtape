@@ -7,6 +7,25 @@
 #include <algorithm>
 #include <fstream>
 
+bb::utils::tmp_file_handler &
+bb::utils::tmp_file_handler::operator=(tmp_file_handler && rhs)
+{
+  if (std::addressof(rhs) == this)
+  {
+    return * this;
+  }
+
+  for (auto & file : __files)
+  {
+    // remove_file(file);
+  }
+
+  __files = rhs.__files;
+  rhs.__files = {};
+
+  return * this;
+}
+
 bb::utils::tmp_file_handler::~tmp_file_handler()
 {
   for (auto & file : __files)
@@ -60,6 +79,12 @@ bb::utils::fs::path &
 bb::utils::tmp_file_handler::operator[](std::size_t i)
 {
   return __files[i];
+}
+
+std::size_t
+bb::utils::tmp_file_handler::size() const
+{
+  return __files.size();
 }
 
 bb::utils::fs::path

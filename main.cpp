@@ -19,7 +19,7 @@ int main(int argc, char ** argv)
     auto valid_dst_path = bb::get_path_from_string(dst_path);
     auto valid_config = bb::read_config_from_file(valid_src_path);
 
-    bb::external_merge_sort(valid_config, valid_src_path, valid_dst_path);
+    bb::sort::external_merge(valid_config, valid_src_path, valid_dst_path);
   }
   catch (const std::format_error & error)
   {

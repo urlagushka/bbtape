@@ -15,7 +15,7 @@ namespace bb::utils
       tmp_file_handler(const tmp_file_handler &) = delete;
       tmp_file_handler(tmp_file_handler &&) = default;
       tmp_file_handler & operator=(const tmp_file_handler &) = delete;
-      tmp_file_handler & operator=(tmp_file_handler &&) = default;
+      tmp_file_handler & operator=(tmp_file_handler &&);
       ~tmp_file_handler();
 
       fs::path create_file();
@@ -23,6 +23,8 @@ namespace bb::utils
 
       void push_back(const fs::path & path);
       fs::path & operator[](std::size_t i);
+
+      std::size_t size() const;
 
     private:
       std::vector< fs::path > __files;
