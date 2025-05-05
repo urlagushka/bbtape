@@ -3,38 +3,23 @@
 
 #include <filesystem>
 #include <vector>
+#include <string_view>
 
 namespace bb::utils
 {
   namespace fs = std::filesystem;
 
-  class tmp_file_handler
-  {
-    public:
-      tmp_file_handler() = default;
-      tmp_file_handler(const tmp_file_handler &) = delete;
-      tmp_file_handler(tmp_file_handler &&) = default;
-      tmp_file_handler & operator=(const tmp_file_handler &) = delete;
-      tmp_file_handler & operator=(tmp_file_handler &&);
-      ~tmp_file_handler();
-
-      fs::path create_file();
-      void delete_file(const fs::path & path);
-
-      void push_back(const fs::path & path);
-      fs::path & operator[](std::size_t i);
-
-      std::size_t size() const;
-
-    private:
-      std::vector< fs::path > __files;
-  };
+  fs::path
+  get_path_from_string(std::string_view path);
 
   fs::path
   create_tmp_file();
 
   void
   remove_file(const fs::path & path);
+
+  void
+  verify_file_path(const std::filesystem::path & path);
 }
 
 #endif

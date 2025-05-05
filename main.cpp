@@ -3,10 +3,10 @@
 #include <format>
 #include <filesystem>
 #include <stdexcept>
-#include <chrono>
 
-#include <bbtape/files.hpp>
 #include <bbtape/sort.hpp>
+
+#include <memory>
 
 int main(int argc, char ** argv)
 {
@@ -15,11 +15,11 @@ int main(int argc, char ** argv)
 
   try
   {
-    auto valid_src_path = bb::get_path_from_string(src_path);
-    auto valid_dst_path = bb::get_path_from_string(dst_path);
+    auto valid_src_path = bb::utils::get_path_from_string(src_path);
+    auto valid_dst_path = bb::utils::get_path_from_string(dst_path);
     auto valid_config = bb::read_config_from_file(valid_src_path);
 
-    bb::sort::external_merge(valid_config, valid_src_path, valid_dst_path);
+    bb::external_merge_sort< int32_t >(valid_config, valid_src_path, valid_dst_path);
   }
   catch (const std::format_error & error)
   {
@@ -36,6 +36,5 @@ int main(int argc, char ** argv)
   {
     std::cerr << error.what() << "\n";
   }
-
   return 0;
 }

@@ -2,17 +2,18 @@
 #define BBTAPE_SORT_HPP
 
 #include <filesystem>
-#include <span>
+#include <iostream>
 
-#include <bbtape/tape.hpp>
-#include <bbtape/files.hpp>
-#include <bbtape/utils.hpp>
+#include <bbtape/config.hpp>
+#include <bbtape/unit.hpp>
+#include <bbtape/tape_handler.hpp>
+#include <bbtape/sort_impl.hpp>
 
-namespace bb::sort
+namespace bb
 {
   namespace fs = std::filesystem;
 
-  struct params
+  struct sort_params
   {
     std::size_t file_amount;
     std::size_t sort_method;
@@ -20,11 +21,100 @@ namespace bb::sort
     std::size_t block_size;
   };
 
-  params
-  get_params(std::size_t tape_size, std::size_t ram_size, std::size_t conv_amount);
+  sort_params
+  get_sort_params(std::size_t tape_size, std::size_t ram_size, std::size_t conv_amount);
 
+  template< unit_type T >
   void
-  external_merge(config ft_config, const fs::path & src, const fs::path & dst);
+  external_merge_sort(config ft_config, const fs::path & src, const fs::path & dst);
+}
+
+template< bb::unit_type T >
+void
+bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path & dst)
+{
+  auto src_tape = std::make_unique< unit< T > >(read_tape_from_file< T >(src));
+  auto dst_tape = std::make_unique< unit< T > >(unit< T >(src_tape->size()));
+
+  const std::size_t ram_size = ft_config.phlimit.ram / sizeof(T);
+  auto ram = std::make_unique< std::vector< T > >(ram_size);
+
+  sort_params pm = get_sort_params(src_tape->size(), ram_size, ft_config.phlimit.conv);
+  std::cout << "ram: " << ram_size << "\n";
+  std::cout << "files: " << pm.file_amount << "\n";
+  std::cout << "sort: " << pm.sort_method << "\n";
+  std::cout << "block: " << pm.block_size << "\n";
+  std::cout << "thread: " << pm.thread_amount << "\n";
+  
+  std::vector< tape_handler< T > > ths;
+  for (std::size_t i = 0; i < ft_config.phlimit.conv; ++i)
+  {
+    ths.emplace_back(ft_config);
+  }
+
+  auto files_tape_ram = split_src_unit< T >(std::move(src_tape), ths[0], pm.file_amount, std::move(ram));
+  file_handler tmp_files = std::move(std::get< 0 >(files_tape_ram));
+  src_tape = std::move(std::get< 1 >(files_tape_ram));
+  ram = std::move(std::get< 2 >(files_tape_ram));
+
+  auto start = std::chrono::high_resolution_clock::now();
+  std::size_t block_size = pm.block_size;
+  while (tmp_files.size() > 1)
+  {
+    switch (pm.sort_method)
+    {
+      case 0:
+      {
+        throw std::runtime_error("bad sort method!");
+        break;
+      }
+
+      case 1:
+      {
+        auto merge = strategy_1< T >(tmp_files, ths, std::move(ram), block_size);
+        tmp_files = std::move(std::get< 0 >(merge));
+        ram = std::move(std::get< 1 >(merge));
+        break;
+      }
+
+      case 2:
+      {
+        auto merge = strategy_2< T >(tmp_files, ths, std::move(ram), block_size, pm.thread_amount);
+        tmp_files = std::move(std::get< 0 >(merge));
+        ram = std::move(std::get< 1 >(merge));
+        break;
+      }
+
+      case 3:
+      {
+        auto merge = strategy_3< T >(tmp_files, ths, std::move(ram), block_size, pm.thread_amount);
+        tmp_files = std::move(std::get< 0 >(merge));
+        ram = std::move(std::get< 1 >(merge));
+        break;
+      }
+    }
+    if (tmp_files.size() / 2 < pm.thread_amount) 
+    {
+      block_size = std::min(block_size * 2, ram_size);
+    }
+  }
+
+  auto tape = read_tape_from_file< T >(tmp_files[0]);
+
+  for (std::size_t i = 0; i < 1000; ++i)
+  {
+    if (i != tape[i])
+    {
+      std::cout << "BAD SORT\n";
+      std::cout << "i: " << i << " tape[i]: " << tape[i] << "\n";
+      // exit(0);
+    }
+  }
+
+  write_tape_to_file(dst, tape);
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  std::cout << "sorting time: " << duration.count() << " ms\n";
 }
 
 #endif

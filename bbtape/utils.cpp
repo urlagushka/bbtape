@@ -7,92 +7,12 @@
 #include <algorithm>
 #include <fstream>
 
-bb::utils::tmp_file_handler &
-bb::utils::tmp_file_handler::operator=(tmp_file_handler && rhs)
-{
-  if (std::addressof(rhs) == this)
-  {
-    return * this;
-  }
-
-  for (auto & file : __files)
-  {
-    // remove_file(file);
-  }
-
-  __files = rhs.__files;
-  rhs.__files = {};
-
-  return * this;
-}
-
-bb::utils::tmp_file_handler::~tmp_file_handler()
-{
-  for (auto & file : __files)
-  {
-    // std::filesystem::remove(file);
-  }
-}
-
-bb::utils::fs::path
-bb::utils::tmp_file_handler::create_file()
-{
-  std::filesystem::path tmp_path = std::filesystem::temp_directory_path();
-  std::filesystem::path filename = std::format("bbtape_{}.json", std::chrono::system_clock::now());
-  std::filesystem::path full_path = tmp_path / filename;
-
-  std::ofstream tmp(full_path);
-  if (!tmp.is_open())
-  {
-    throw std::runtime_error("can not create file!");
-  }
-  tmp.close();
-
-  __files.push_back(full_path);
-  return full_path;
-}
-
-void
-bb::utils::tmp_file_handler::delete_file(const fs::path & path)
-{
-  if (std::find(__files.begin(), __files.end(), path) == __files.end())
-  {
-    throw std::runtime_error("file is not owned by this handler!");
-  }
-  if (!fs::exists(path))
-  {
-    throw std::runtime_error("file does not exist!");
-  }
-
-  fs::remove(path);
-  auto to_del = std::remove(__files.begin(), __files.end(), path);
-  __files.erase(to_del, __files.end());
-}
-
-void
-bb::utils::tmp_file_handler::push_back(const fs::path & path)
-{
-  __files.push_back(path);
-}
-
-bb::utils::fs::path &
-bb::utils::tmp_file_handler::operator[](std::size_t i)
-{
-  return __files[i];
-}
-
-std::size_t
-bb::utils::tmp_file_handler::size() const
-{
-  return __files.size();
-}
-
 bb::utils::fs::path
 bb::utils::create_tmp_file()
 {
-  std::filesystem::path tmp_path = std::filesystem::temp_directory_path();
-  std::filesystem::path filename = std::format("bbtape_{}.json", std::chrono::system_clock::now());
-  std::filesystem::path full_path = tmp_path / filename;
+  fs::path tmp_path = fs::temp_directory_path();
+  fs::path filename = std::format("bbtape_{}.json", std::chrono::system_clock::now());
+  fs::path full_path = tmp_path / filename;
 
   std::ofstream tmp(full_path);
   if (!tmp.is_open())
@@ -113,4 +33,26 @@ bb::utils::remove_file(const fs::path & path)
   }
 
   fs::remove(path);
+}
+
+bb::utils::fs::path
+bb::utils::get_path_from_string(std::string_view path)
+{
+  std::filesystem::path valid_path = path;
+  verify_file_path(valid_path);
+
+  return valid_path;
+}
+
+void
+bb::utils::verify_file_path(const fs::path & path)
+{
+  if (!fs::exists(path))
+  {
+    throw std::runtime_error("file does not exist!");
+  }
+  if (path.extension() != ".json")
+  {
+    throw std::runtime_error("file extension is bad! (.json required)");
+  }
 }
