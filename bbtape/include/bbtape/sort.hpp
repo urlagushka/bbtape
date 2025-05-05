@@ -16,7 +16,6 @@ namespace bb
   struct sort_params
   {
     std::size_t file_amount;
-    std::size_t sort_method;
     std::size_t thread_amount;
     std::size_t block_size;
   };
@@ -42,7 +41,6 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
   sort_params pm = get_sort_params(src_tape->size(), ram_size, ft_config.phlimit.conv);
   std::cout << "ram: " << ram_size << "\n";
   std::cout << "files: " << pm.file_amount << "\n";
-  std::cout << "sort: " << pm.sort_method << "\n";
   std::cout << "block: " << pm.block_size << "\n";
   std::cout << "thread: " << pm.thread_amount << "\n";
   
@@ -59,44 +57,15 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
 
   auto start = std::chrono::high_resolution_clock::now();
   std::size_t block_size = pm.block_size;
+  std::size_t thread_amount = pm.thread_amount;
   while (tmp_files.size() > 1)
   {
-    switch (pm.sort_method)
-    {
-      case 0:
-      {
-        throw std::runtime_error("bad sort method!");
-        break;
-      }
+    auto merge = strategy< T >(tmp_files, ths, std::move(ram), block_size, thread_amount);
+    tmp_files = std::move(std::get< 0 >(merge));
+    ram = std::move(std::get< 1 >(merge));
 
-      case 1:
-      {
-        auto merge = strategy_1< T >(tmp_files, ths, std::move(ram), block_size);
-        tmp_files = std::move(std::get< 0 >(merge));
-        ram = std::move(std::get< 1 >(merge));
-        break;
-      }
-
-      case 2:
-      {
-        auto merge = strategy_2< T >(tmp_files, ths, std::move(ram), block_size, pm.thread_amount);
-        tmp_files = std::move(std::get< 0 >(merge));
-        ram = std::move(std::get< 1 >(merge));
-        break;
-      }
-
-      case 3:
-      {
-        auto merge = strategy_3< T >(tmp_files, ths, std::move(ram), block_size, pm.thread_amount);
-        tmp_files = std::move(std::get< 0 >(merge));
-        ram = std::move(std::get< 1 >(merge));
-        break;
-      }
-    }
-    if (tmp_files.size() / 2 < pm.thread_amount) 
-    {
-      block_size = std::min(block_size * 2, ram_size);
-    }
+    thread_amount = std::min(thread_amount, tmp_files.size() / 2);
+    block_size = ram_size / thread_amount;
   }
 
   auto tape = read_tape_from_file< T >(tmp_files[0]);
@@ -107,7 +76,6 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
     {
       std::cout << "BAD SORT\n";
       std::cout << "i: " << i << " tape[i]: " << tape[i] << "\n";
-      // exit(0);
     }
   }
 

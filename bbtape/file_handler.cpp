@@ -18,7 +18,10 @@ bb::file_handler::operator=(file_handler && rhs)
 
   for (auto & file : __files)
   {
-    utils::remove_file(file);
+    if (fs::exists(file))
+    {
+      utils::remove_file(file);
+    }
   }
 
   __files = rhs.__files;
@@ -31,7 +34,10 @@ bb::file_handler::~file_handler()
 {
   for (auto & file : __files)
   {
-    utils::remove_file(file);
+    if(fs::exists(file))
+    {
+      utils::remove_file(file);
+    }
   }
 }
 

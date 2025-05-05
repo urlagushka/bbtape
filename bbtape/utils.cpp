@@ -29,7 +29,7 @@ bb::utils::remove_file(const fs::path & path)
 {
   if (!fs::exists(path))
   {
-    throw std::runtime_error("file does not exist!");
+    throw std::runtime_error("remove_file: file does not exist!");
   }
 
   fs::remove(path);
@@ -49,7 +49,7 @@ bb::utils::verify_file_path(const fs::path & path)
 {
   if (!fs::exists(path))
   {
-    throw std::runtime_error("file does not exist!");
+    throw std::runtime_error("verify_file_path: file does not exist!");
   }
   if (path.extension() != ".json")
   {
