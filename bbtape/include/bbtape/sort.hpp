@@ -32,6 +32,7 @@ template< bb::unit_type T >
 void
 bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path & dst)
 {
+  auto start1 = std::chrono::high_resolution_clock::now();
   auto src_tape = std::make_unique< unit< T > >(read_tape_from_file< T >(src));
   auto dst_tape = std::make_unique< unit< T > >(unit< T >(src_tape->size()));
 
@@ -54,6 +55,10 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
   file_handler tmp_files = std::move(std::get< 0 >(files_tape_ram));
   src_tape = std::move(std::get< 1 >(files_tape_ram));
   ram = std::move(std::get< 2 >(files_tape_ram));
+
+  auto end1 = std::chrono::high_resolution_clock::now();
+  auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - start1);
+  std::cout << "split time: " << duration1.count() << " ms\n";
 
   auto start = std::chrono::high_resolution_clock::now();
   std::size_t block_size = pm.block_size;
