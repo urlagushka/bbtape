@@ -10,8 +10,14 @@
 
 int main(int argc, char ** argv)
 {
-  std::string src_path = "/Users/urlagushka/Documents/bbtape/tape.src.json";
-  std::string dst_path = "/Users/urlagushka/Documents/bbtape/tape.dst.json";
+  if (argc != 3)
+  {
+    std::cout << "input args is bad!\n";
+    return 1;
+  }
+
+  std::string src_path = argv[1];
+  std::string dst_path = argv[2];
 
   try
   {

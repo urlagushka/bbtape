@@ -2,7 +2,6 @@
 #define BBTAPE_SORT_HPP
 
 #include <filesystem>
-#include <iostream>
 
 #include <bbtape/config.hpp>
 #include <bbtape/unit.hpp>
@@ -32,7 +31,6 @@ template< bb::unit_type T >
 void
 bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path & dst)
 {
-  auto start1 = std::chrono::high_resolution_clock::now();
   auto src_tape = std::make_unique< unit< T > >(read_tape_from_file< T >(src));
   auto dst_tape = std::make_unique< unit< T > >(unit< T >(src_tape->size()));
 
@@ -40,10 +38,10 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
   auto ram = std::make_unique< std::vector< T > >(ram_size);
 
   sort_params pm = get_sort_params(src_tape->size(), ram_size, ft_config.phlimit.conv);
-  std::cout << "ram: " << ram_size << "\n";
-  std::cout << "files: " << pm.file_amount << "\n";
-  std::cout << "block: " << pm.block_size << "\n";
-  std::cout << "thread: " << pm.thread_amount << "\n";
+  if (pm.thread_amount == 0)
+  {
+    throw std::runtime_error("conv amount is zero!");
+  }
   
   std::vector< tape_handler< T > > ths;
   for (std::size_t i = 0; i < ft_config.phlimit.conv; ++i)
@@ -56,11 +54,6 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
   src_tape = std::move(std::get< 1 >(files_tape_ram));
   ram = std::move(std::get< 2 >(files_tape_ram));
 
-  auto end1 = std::chrono::high_resolution_clock::now();
-  auto duration1 = std::chrono::duration_cast<std::chrono::milliseconds>(end1 - start1);
-  std::cout << "split time: " << duration1.count() << " ms\n";
-
-  auto start = std::chrono::high_resolution_clock::now();
   std::size_t block_size = pm.block_size;
   std::size_t thread_amount = pm.thread_amount;
   while (tmp_files.size() > 1)
@@ -74,20 +67,7 @@ bb::external_merge_sort(config ft_config, const fs::path & src, const fs::path &
   }
 
   auto tape = read_tape_from_file< T >(tmp_files[0]);
-
-  for (std::size_t i = 0; i < 1000; ++i)
-  {
-    if (i != tape[i])
-    {
-      std::cout << "BAD SORT\n";
-      std::cout << "i: " << i << " tape[i]: " << tape[i] << "\n";
-    }
-  }
-
   write_tape_to_file(dst, tape);
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "sorting time: " << duration.count() << " ms\n";
 }
 
 #endif
