@@ -102,7 +102,7 @@ conv - количество устройств
 tape - исходная лента
 ```
 
-![result]()
+![result](https://github.com/urlagushka/bbtape/blob/main/result.png)
 
 Тестируемый тип - int32_t
 При тестировании количество устройств (conv) увеличивалось от 1 до 8.
