@@ -134,7 +134,11 @@ cmake -DCMAKE_C_COMPILER=/opt/homebrew/Cellar/gcc/14.2.0_1/bin/gcc-14 \
 
 make
 
+-- запуск программы
 ./bbtape_example <src.json> <dst.json>
+
+-- запуск тестов
+ctest -V
 ```
 
 #### Linux
@@ -148,5 +152,9 @@ cmake ..
 
 make
 
+-- запуск программы
 ./bbtape_example <src.json> <dst.json>
+
+-- запуск тестов
+ctest -V
 ```
